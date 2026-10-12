@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Vector DB Visualizer — Explorador 3D interactivo de espacios vectoriales, embeddings de alta dimensión, algoritmos de indexación HNSW/IVF y aritmética conceptual.">
+  <title>Vector DB Visualizer — Explorador 3D de Espacios Vectoriales</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Site Header Semántica -->
+  <header class="site-header" id="main-header">
+    <div class="brand-wrapper">
+      <div class="brand-logo-icon" id="brand-logo">📐</div>
+      <h1 class="site-title" id="main-title">Vector DB & Embedding Space 3D Visualizer</h1>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-icon-label" id="btn-toggle-sound" title="Alternar efectos sonoros">
+        🔊 Audio On
+      </button>
+      <label class="btn-icon-label" id="lbl-import-json" for="file-import-json" title="Importar archivo de vectores JSON">
+        📥 Importar JSON
+      </label>
+      <input type="file" id="file-import-json" accept=".json" style="display:none;">
+      <button class="btn-icon-label" id="btn-export-json" title="Exportar espacio de embeddings en JSON">
+        📤 Exportar JSON
+      </button>
+      <button class="btn-icon-label" id="btn-export-sql" title="Exportar dump SQLite compatible con sqlite3 CLI">
+        🗄️ Exportar SQL
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-container" id="main-app-container">
+
+    <!-- Sidebar Izquierda: Controles de Búsqueda e Indexación -->
+    <aside class="sidebar-left" id="sidebar-controls" aria-label="Controles de búsqueda e indexación">
+      
+      <!-- Panel de Consulta Semántica -->
+      <section class="panel-card" id="panel-semantic-query">
+        <div class="panel-header">
+          <span class="panel-title">🔍 Consulta Semántica</span>
+        </div>
+        <div class="control-group">
+          <label for="query-text-input" class="control-label">Texto o Concepto Prompt:</label>
+          <input type="text" id="query-text-input" class="custom-input" placeholder="Ej: Quantum Machine Learning..." value="Neural Network Attention Mechanism">
+        </div>
+        <button class="btn-primary" id="btn-run-query">
+          <span>🚀 Vectorizar & Buscar Top-K</span>
+        </button>
+      </section>
+
+      <!-- Panel de Algoritmos de Indexación -->
+      <section class="panel-card" id="panel-index-settings">
+        <div class="panel-header">
+          <span class="panel-title">⚡ Motor de Indexación</span>
+        </div>
+
+        <div class="control-group">
+          <label for="index-type-select" class="control-label">Estructura de Índice:</label>
+          <select id="index-type-select" class="custom-select">
+            <option value="hnsw" selected>HNSW (Hierarchical Navigable Small World)</option>
+            <option value="ivf">IVF-PQ (Inverted File Voronoi Cells)</option>
+            <option value="flat">Flat Index (Exact Brute Force / L2 Scan)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="metric-select" class="control-label">Métrica de Distancia / Similitud:</label>
+          <select id="metric-select" class="custom-select">
+            <option value="cosine" selected>Cosine Similarity (1 - cos θ)</option>
+            <option value="euclidean">Euclidean Distance (L2 Norm)</option>
+            <option value="dot">Dot Product (Proyección Lineal)</option>
+            <option value="manhattan">Manhattan Distance (L1 Norm)</option>
+          </select>
+        </div>
+
+        <div class="formula-display-card" id="metric-formula-display">
+          Cosine: cos(θ) = (A · B) / (||A|| ||B||)
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>Vecinos Cercanos (Top-K):</span>
+            <strong id="topk-value" class="neon-cyan">5</strong>
+          </div>
+          <input type="range" id="topk-slider" min="1" max="10" value="5" step="1">
+        </div>
+      </section>
+
+      <!-- Panel de Proyección Dimensional -->
+      <section class="panel-card" id="panel-reduction-settings">
+        <div class="panel-header">
+          <span class="panel-title">📉 Reducción Dimensional</span>
+        </div>
+
+        <div class="control-group">
+          <span class="control-label">Algoritmo de Proyección (64-D → 3D):</span>
+          <div class="btn-toggle-group">
+            <button class="btn-toggle active" id="btn-proj-pca">PCA (Linear)</button>
+            <button class="btn-toggle" id="btn-proj-tsne">t-SNE (Non-Linear)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel de Aritmética Vectorial (Word2Vec) -->
+      <section class="panel-card" id="panel-vector-arithmetic">
+        <div class="panel-header">
+          <span class="panel-title">✨ Aritmética Conceptual</span>
+        </div>
+        <p style="font-size:0.74rem; color:var(--text-muted);">Calcula: <code>Vector(A) - Vector(B) + Vector(C)</code></p>
+
+        <div class="control-group">
+          <label for="analogy-a" class="control-label">Concepto A (+):</label>
+          <select id="analogy-a" class="custom-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="analogy-b" class="control-label">Concepto B (-):</label>
+          <select id="analogy-b" class="custom-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="analogy-c" class="control-label">Concepto C (+):</label>
+          <select id="analogy-c" class="custom-select"></select>
+        </div>
+
+        <button class="btn-primary" id="btn-compute-analogy" style="background:linear-gradient(135deg, #ec4899, #8b5cf6);">
+          <span>🧪 Calcular Analogía Vectorial</span>
+        </button>
+
+        <div class="analogy-result-box" id="analogy-result-box" style="margin-top:6px;">
+          <div class="analogy-badge neon-cyan">Resultado Más Cercano:</div>
+          <div class="analogy-winner" id="analogy-winner-text">Ejecuta o selecciona un preset...</div>
+        </div>
+
+        <div class="analogy-grid" id="analogy-presets-list" style="margin-top:8px;">
+          <!-- Presets cargados dinámicamente -->
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- Viewport Central 3D -->
+    <section class="viewport-center" id="viewport-section" aria-label="Espacio Vectorial 3D">
+      
+      <!-- Controles Flotantes de Cámara -->
+      <div class="viewport-floating-controls">
+        <button class="btn-icon-label" id="btn-reset-cam" title="Centrar cámara">🎯 Reset Cámara</button>
+        <button class="btn-icon-label" id="btn-auto-rotate" title="Rotación continua orbital">🔄 Auto-Giro</button>
+        <button class="btn-icon-label active" id="btn-toggle-grid" title="Mostrar rejilla espacial 3D">🌐 Rejilla 3D</button>
+      </div>
+
+      <!-- Lienzo Interactivo Canvas 3D -->
+      <div class="canvas-wrapper" id="canvas-container"></div>
+
+      <!-- Barra Inferior de Filtros de Categoría -->
+      <nav class="viewport-category-bar" id="category-filter-bar" aria-label="Filtro de dominios"></nav>
+    </section>
+
+    <!-- Sidebar Derecha: Resultados, Traversal Log & Inspector -->
+    <aside class="sidebar-right" id="sidebar-results" aria-label="Resultados y depuración">
+
+      <!-- Panel de Estadísticas & Top-K -->
+      <section class="panel-card" id="panel-topk-results">
+        <div class="panel-header">
+          <span class="panel-title">🏆 Top-K Coincidencias</span>
+        </div>
+
+        <div class="search-stats" id="search-stats-bar">
+          <div class="stat-pill"><span class="stat-lbl">Índice:</span> <strong>HNSW Graph</strong></div>
+          <div class="stat-pill"><span class="stat-lbl">Latencia:</span> <strong class="neon-cyan">0.05 ms</strong></div>
+          <div class="stat-pill"><span class="stat-lbl">Comparaciones:</span> <strong>8 / 32</strong></div>
+          <div class="stat-pill"><span class="stat-lbl">Recall Teórico:</span> <strong class="neon-emerald">~98.4%</strong></div>
+        </div>
+
+        <div class="results-container" id="search-results-list">
+          <!-- Tarjetas de resultados insertadas dinámicamente -->
+        </div>
+      </section>
+
+      <!-- Panel de Depuración de Travesía del Índice -->
+      <section class="panel-card" id="panel-traversal-log">
+        <div class="panel-header">
+          <span class="panel-title">👣 Travesía del Grafo (HNSW / IVF)</span>
+        </div>
+        <div class="traversal-log-box" id="traversal-log-box">
+          <div class="log-entry info">Inicia una búsqueda o selecciona un vector para ver la ruta por capas.</div>
+        </div>
+      </section>
+
+      <!-- Inspector del Vector Seleccionado -->
+      <section class="panel-card" id="node-inspector-drawer">
+        <div class="panel-header">
+          <span class="panel-title">🔬 Inspector de Vector</span>
+        </div>
+
+        <div>
+          <h2 style="font-size:0.95rem; font-weight:700;" id="insp-title">Transformer Architecture</h2>
+          <span id="insp-category" style="font-size:0.75rem; font-weight:600; color:var(--neon-cyan);">Artificial Intelligence</span>
+        </div>
+
+        <p style="font-size:0.74rem; color:var(--text-muted);" id="insp-desc">
+          Self-attention mechanism and parallel sequence processing for LLMs.
+        </p>
+
+        <table class="meta-table">
+          <tr>
+            <td>Dimensión:</td>
+            <td id="insp-dim">64-D</td>
+          </tr>
+          <tr>
+            <td>Magnitud ||V||:</td>
+            <td id="insp-mag">1.0000</td>
+          </tr>
+        </table>
+
+        <div>
+          <span class="control-label" style="margin-bottom:4px;">Mapa de Calor de Dimensiones (64-D):</span>
+          <div class="vector-heatmap" id="vector-heatmap-grid"></div>
+        </div>
+
+        <button class="btn-icon-label" id="btn-query-this-node" style="width:100%; justify-content:center; margin-top:4px;">
+          🎯 Usar como Vector de Consulta
+        </button>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- Footer con Telemetría en Tiempo Real -->
+  <footer class="site-footer" id="main-footer">
+    <div class="footer-left">
+      <div class="status-dot"></div>
+      <span id="status-hover-text">Explorador Activo — 32 vectores en 64-D</span>
+    </div>
+    <div>
+      <span>Vector DB Visualizer v1.0 • Motor Matemático ES6+ & Canvas 3D</span>
+    </div>
+  </footer>
+
+  <!-- Script Modular ES6 -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
